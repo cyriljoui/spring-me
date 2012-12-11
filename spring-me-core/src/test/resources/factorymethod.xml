@@ -7,21 +7,21 @@
   <bean id="constructor"
       class="me.springframework.di.spring.FactoryMethodTest$MyObject">
     <constructor-arg value="ctr"/>
-    <constructor-arg value="01"/>
+    <constructor-arg value="01" type="int"/>
   </bean>
 
   <bean id="localFactoryMethod"
       class="me.springframework.di.spring.FactoryMethodTest$MyObject"
       factory-method="newInstance">
     <constructor-arg value="local"/>
-    <constructor-arg value="02"/>
+    <constructor-arg value="02" type="int" />
   </bean>
 
   <bean id="nonLocalFactoryMethod"
       class="me.springframework.di.spring.FactoryMethodTest$MyObjectFactory"
       factory-method="create">
     <constructor-arg value="nonLocal"/>
-    <constructor-arg value="03"/>
+    <constructor-arg value="03" type="int"/>
   </bean>
 
   <bean id="nonLocalFactoryBeanInstance"
@@ -31,7 +31,7 @@
       factory-bean="nonLocalFactoryBeanInstance"
       factory-method="createObject">
     <constructor-arg value="nonLocalFactoryBean"/>
-    <constructor-arg value="04"/>
+    <constructor-arg value="04" type="int"/>
   </bean>
 
   <!-- Unusual example: creating a method from an instance of the same type -->
@@ -42,7 +42,7 @@
       factory-bean="localFactoryBeanInstance"
       factory-method="createAnother">
     <constructor-arg value="localFactoryBean"/>
-    <constructor-arg value="05"/>
+    <constructor-arg value="05" type="int"/>
   </bean>
 
 </beans>

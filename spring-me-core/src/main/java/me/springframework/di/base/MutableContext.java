@@ -37,7 +37,7 @@
  */
 package me.springframework.di.base;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -47,10 +47,10 @@ import java.util.Map;
 public class MutableContext {
 
     private final Map<String, MutableInstance> instances =
-        new HashMap<String, MutableInstance>();
+        new LinkedHashMap<String, MutableInstance>();
 
     private final Map<String, String> aliases =
-        new HashMap<String, String>();
+        new LinkedHashMap<String, String>();
 
     /**
      * Adds a container-managed bean definition to this instance.

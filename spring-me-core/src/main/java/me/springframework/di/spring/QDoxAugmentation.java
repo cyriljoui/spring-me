@@ -39,7 +39,6 @@ package me.springframework.di.spring;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
 import me.springframework.di.MapSource;
@@ -219,6 +218,7 @@ public class QDoxAugmentation implements Augmentation {
                 }
                 JavaClass factoryClass = builder.getClassByName(instance.getReferencedType());
                 JavaMethod method = findMethod(factoryClass, true, instance.getFactoryMethod(), arguments);
+                System.out.println("method: " + method);
                 instance.setType(method.getReturns().toString());
 
             } else { // If there is a bean factory
@@ -291,6 +291,7 @@ public class QDoxAugmentation implements Augmentation {
                 return method;
             }
         }
+        System.out.println("method not found: " + name + " arguments: " + arguments);
         return null;
     }
 

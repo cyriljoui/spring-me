@@ -37,32 +37,44 @@
  */
 package me.springframework.di.maven;
 
-import com.thoughtworks.qdox.JavaDocBuilder;
+import java.io.File;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+
 import me.springframework.di.Configuration;
 import me.springframework.di.spring.AutowiringAugmentation;
 import me.springframework.di.spring.QDoxAugmentation;
 import me.springframework.di.spring.SinkAugmentation;
 import me.springframework.di.spring.SpringConfigurationLoader;
+
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.factory.ArtifactFactory;
+import org.apache.maven.artifact.metadata.ArtifactMetadataSource;
 import org.apache.maven.artifact.repository.ArtifactRepository;
+import org.apache.maven.artifact.resolver.ArtifactCollector;
+import org.apache.maven.artifact.resolver.ArtifactResolver;
 import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
+import org.apache.maven.artifact.resolver.filter.ScopeArtifactFilter;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.artifact.InvalidDependencyVersionException;
-import org.apache.maven.project.artifact.MavenMetadataSource;
+import org.apache.maven.shared.dependency.tree.DependencyNode;
+import org.apache.maven.shared.dependency.tree.DependencyTreeBuilder;
+import org.apache.maven.shared.dependency.tree.DependencyTreeBuilderException;
+import org.apache.maven.shared.dependency.tree.traversal.CollectingDependencyNodeVisitor;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
-import java.io.File;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import com.thoughtworks.qdox.JavaDocBuilder;
 
 
 /**
@@ -72,6 +84,11 @@ import java.util.Set;
  * 
  */
 public abstract class AbstractGeneratorMojo extends AbstractMojo {
+
+    /**
+	 * Jar extension.
+	 */
+	private static final String EXTENSION_JAR = "jar";
 
     /**
      * The project in which the plugin is included.
@@ -119,7 +136,57 @@ public abstract class AbstractGeneratorMojo extends AbstractMojo {
      */
     private File contextFile;
 
-    // JavaDoc inherited
+    /**
+     * @component
+     */
+    protected ArtifactResolver resolver;
+
+    /**
+     * Tree builder.
+     * @component
+     */
+    private DependencyTreeBuilder treeBuilder;
+
+    /**
+     * Artifact collector.
+     * @component
+     */
+    private ArtifactCollector artifactCollector;
+
+    /**
+     * @component
+     */
+    protected ArtifactMetadataSource artifactMetadataSource;
+
+    /**
+     * Repository folder.
+     */
+	private File repositoryBaseFolder;
+
+	/**
+	 * @param localRepository the localRepository to set
+	 */
+	public void setLocalRepository(ArtifactRepository localRepository) {
+		this.localRepository = localRepository;
+        String baseDir = localRepository.getBasedir();
+        repositoryBaseFolder = new File(baseDir);
+	}
+
+    /**
+	 * @param artifactCollector the artifactCollector to set
+	 */
+	public void setArtifactCollector(ArtifactCollector artifactCollector) {
+		this.artifactCollector = artifactCollector;
+	}
+
+	/**
+	 * @param treeBuilder the treeBuilder to set
+	 */
+	public void setTreeBuilder(DependencyTreeBuilder treeBuilder) {
+		this.treeBuilder = treeBuilder;
+	}
+
+	// JavaDoc inherited
     final public void execute() throws MojoExecutionException, MojoFailureException {
         for (BeanFactory factory : getBeanFactories()) {
             Configuration configuration = load(new FileSystemResource(factory.getContextFile()));
@@ -141,13 +208,22 @@ public abstract class AbstractGeneratorMojo extends AbstractMojo {
     }
 
     private Configuration load(Resource resource) throws MojoExecutionException {
-        JavaDocBuilder builder = createJavaDocBuilder();
+        JavaDocBuilder builder = createJavaDocBuilder(resource.getClass().getClassLoader());
         QDoxAugmentation augmentation = new QDoxAugmentation(builder);
         augmentation.setLoggingKitAdapter(new MavenLoggingKitAdapter(getLog()));
         AutowiringAugmentation autowire = new AutowiringAugmentation(builder);
         SinkAugmentation sink = new SinkAugmentation();
         SpringConfigurationLoader loader = new SpringConfigurationLoader(augmentation, autowire, sink);
-        return loader.load(resource);
+        URLClassLoader projectClassLoader;
+		try {
+			projectClassLoader = getProjectClassLoader(resource.getClass().getClassLoader());
+		} catch (MalformedURLException e) {
+			throw new MojoExecutionException("Malformed artifact URLs.", e);
+		} catch (InvalidDependencyVersionException e) {
+			throw new MojoExecutionException("Malformed artifact URLs.", e);
+		}
+
+		return loader.load(resource, projectClassLoader);
     }
 
     /**
@@ -159,11 +235,163 @@ public abstract class AbstractGeneratorMojo extends AbstractMojo {
 
     /**
      * Produces the {@link JavaDocBuilder} used to analyze classes and source files.
+     * @param parent parent classloader
      * 
      * @return The {@link JavaDocBuilder} used to analyze classes and source files.
      * @throws MojoExecutionException If we fail to produce the {@link JavaDocBuilder}. (Fail
      *             early.)
      */
+    private JavaDocBuilder createJavaDocBuilder(ClassLoader parent) throws MojoExecutionException {
+        JavaDocBuilder builder = new JavaDocBuilder();
+        builder.addSourceTree(new File(project.getBuild().getSourceDirectory()));
+        // Quick and dirty hack for adding Classloaders with the definitions of
+        // classes the sources depend upon.
+        try {
+        	URLClassLoader loader = getProjectClassLoader(parent);
+            builder.getClassLibrary().addClassLoader(loader);
+        } catch (InvalidDependencyVersionException idve) {
+            idve.printStackTrace();
+        } catch (MalformedURLException e) {
+            throw new MojoExecutionException("Malformed artifact URLs.", e);
+        }
+        return builder;
+    }
+
+    /**
+     * Get project class loader object.
+     * @return Maven module class loader instance
+     * @throws InvalidDependencyVersionException
+     * @throws MalformedURLException
+     * @throws MojoExecutionException
+     */
+	private URLClassLoader getProjectClassLoader(ClassLoader parent)
+			throws InvalidDependencyVersionException, MalformedURLException,
+			MojoExecutionException {
+    	// Optimize source generation (use jar from repository instead of unjarred content)
+
+		List<URL> classpathURLsList = null;
+		try {
+			classpathURLsList = createClasspathURLsList();
+		} catch (MojoFailureException e) {
+			throw new MojoExecutionException(e.getMessage());
+		}
+
+		/*
+		if (testScope) {
+			String testOutputDirectory = getProject().getBuild().getTestOutputDirectory();
+			classpathURLsList.add(new File(testOutputDirectory).toURI().toURL());
+		}
+		*/
+
+		if (getLog().isDebugEnabled()) {
+			for (URL url : classpathURLsList) {
+				getLog().debug(">> url: " + url);
+			}
+		}
+
+		if (parent == null) {
+			parent = getClass().getClassLoader();
+		}
+
+		URLClassLoader urlClassLoader = new URLClassLoader(classpathURLsList.toArray(new URL[classpathURLsList.size()]), parent);
+		return urlClassLoader;
+	}
+
+	/**
+	 * Extract URL jar file from given artifact.
+	 * @param artifact artifact to extract
+	 * @return extracted URL
+	 * @throws IOException Error extracting URL jar
+	 */
+	private URL extractArtifactUrl(Artifact artifact) throws IOException {
+		String pathOf = localRepository.pathOf(artifact);
+		File artifactFile = new File(repositoryBaseFolder, pathOf);
+
+		URL url = null;
+		try {
+			url = artifactFile.toURI().toURL();
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+			getLog().error(e.getMessage());
+			throw new IOException();
+		}
+		return url;
+	}
+
+	/**
+	 * Create classpath URLs list.
+	 * @return classpath URL list
+	 * @throws MojoFailureException error creating URLs list
+	 */
+	@SuppressWarnings("unchecked")
+	private List<URL> createClasspathURLsList() throws MojoFailureException {
+		List<URL> urls = new LinkedList<URL>();
+
+		// 1. Get all project dependencies
+		DependencyNode rootNode = null;
+	    try {
+	        ArtifactFilter artifactFilter = new ScopeArtifactFilter(null);
+	        rootNode = treeBuilder.buildDependencyTree(project,
+	                localRepository, artifactFactory, artifactMetadataSource,
+	                artifactFilter, artifactCollector);
+	    } catch (DependencyTreeBuilderException e) {
+	        throw new MojoFailureException(e.getMessage());
+	    }
+
+        CollectingDependencyNodeVisitor visitor = new CollectingDependencyNodeVisitor();
+
+        rootNode.accept(visitor);
+        List<DependencyNode> nodes = visitor.getNodes();
+
+        // 2. Get all URL dependencies 
+        Set<Artifact> artifacts = new HashSet<Artifact>();
+        for (DependencyNode dependencyNode : nodes) {
+        	// Initialize artifact
+            Artifact artifact = dependencyNode.getArtifact();
+            if (artifacts.contains(artifact)) {
+            	// Artifact already parsed
+            	continue;
+            }
+            artifacts.add(artifact);
+
+            // Skip non jar type
+            if (!EXTENSION_JAR.equalsIgnoreCase(artifact.getType())) {
+            	continue;
+            }
+
+			if (artifact.getArtifactId().equals(project.getArtifactId())) {
+				getLog().info("Skip artifact: " + artifact);
+				continue;
+			}
+
+			// Other scope
+			try {
+				URL url = extractArtifactUrl(artifact);
+				urls.add(url);
+			} catch (IOException e) {
+				getLog().warn("Can't get URL object for artifact: " + artifact);
+				continue;
+			}
+        }
+
+        /*
+        try {
+			urls.add(new File(project.getBasedir(), "target/classes").toURI().toURL());
+		} catch (MalformedURLException e) {
+			getLog().warn("Can't add the target/classes of current maven project to classpath. Error: " + e);
+		}
+        */
+
+        return urls;
+	}
+
+
+    /*
+     * Produces the {@link JavaDocBuilder} used to analyze classes and source files.
+     * 
+     * @return The {@link JavaDocBuilder} used to analyze classes and source files.
+     * @throws MojoExecutionException If we fail to produce the {@link JavaDocBuilder}. (Fail
+     *             early.)
     @SuppressWarnings("unchecked")
     private JavaDocBuilder createJavaDocBuilder() throws MojoExecutionException {
         JavaDocBuilder builder = new JavaDocBuilder();
@@ -200,6 +428,7 @@ public abstract class AbstractGeneratorMojo extends AbstractMojo {
         }
         return builder;
     }
+     */
 
     /**
      * A project reference, providing a context for the MOJO execution.
