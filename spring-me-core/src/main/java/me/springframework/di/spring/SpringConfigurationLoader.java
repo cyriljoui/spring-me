@@ -38,7 +38,7 @@
 package me.springframework.di.spring;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -128,6 +128,20 @@ public class SpringConfigurationLoader {
     }
 
     /**
+     * Loads a Configuration from a Spring XML based application context.
+     * Use given class loader to load import resources in Spring contexts.
+     * 
+     * @param resource
+     *            The Spring configuration file defining the beans.
+     * @param beanClassLoader bean class loader
+     * @return A {@link Configuration} representing the graph of wired objects.
+     */
+    public Configuration load(Resource resource, ClassLoader beanClassLoader) {
+    	ConfigurableListableBeanFactory registry = new XmlBeanFactoryWithClassLoader(resource, beanClassLoader);
+        return load(registry);
+    }
+
+    /**
      * Loads a Configuration from an existing application context.
      *
      * @param resource The Spring context from which to load bean definitions.
@@ -212,7 +226,7 @@ public class SpringConfigurationLoader {
             }
             instance.setConstructorArguments(arguments);
         }
-        Set<MutablePropertySetter> setters = new HashSet<MutablePropertySetter>();
+        Set<MutablePropertySetter> setters = new LinkedHashSet<MutablePropertySetter>();
         for (Object object : definition.getPropertyValues().getPropertyValueList()) {
             MutablePropertySetter setter = new MutablePropertySetter(instance);
             setter.setInstance(instance);

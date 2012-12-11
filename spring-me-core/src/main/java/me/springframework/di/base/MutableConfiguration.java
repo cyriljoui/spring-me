@@ -39,7 +39,7 @@ package me.springframework.di.base;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -47,17 +47,17 @@ import me.springframework.di.Configuration;
 import me.springframework.di.Instance;
 import me.springframework.di.ListSource;
 import me.springframework.di.MapSource;
+import me.springframework.di.MapSource.Entry;
 import me.springframework.di.Sink;
 import me.springframework.di.Source;
-import me.springframework.di.MapSource.Entry;
 
 public class MutableConfiguration implements Configuration {
 
-    private Set<Instance> instanceSources = new HashSet<Instance>();
-    private Set<ListSource> listSources = new HashSet<ListSource>();
-    private Set<Instance> publicInstances = new HashSet<Instance>();
+    private Set<Instance> instanceSources = new LinkedHashSet<Instance>();
+    private Set<ListSource> listSources = new LinkedHashSet<ListSource>();
+    private Set<Instance> publicInstances = new LinkedHashSet<Instance>();
     private Map<String, ? extends Instance> instancesByName;
-    private Set<MapSource> mapSources = new HashSet<MapSource>();
+    private Set<MapSource> mapSources = new LinkedHashSet<MapSource>();
 
     public MutableConfiguration(Map<String, ? extends Instance> publicInstances) {
         for (Instance instance : publicInstances.values()) {
