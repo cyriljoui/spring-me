@@ -61,6 +61,16 @@ public class <destination.classname> <implementations()>{
     public <destination.classname>() {
         start();
     }
+
+    /**
+     * Constructs an instance of this bean factory.
+     * @param autoStart autoStart factory or not
+     */
+    public <destination.classname>(Boolean autoStart) {
+    	if (Boolean.TRUE.equals(autoStart)) {
+	        start();
+    	}
+    }
   
     /**
      * Returns an object by looking it up by its name.
@@ -75,6 +85,13 @@ public class <destination.classname> <implementations()>{
     }
 
     <factoryMethods()>
+
+    /**
+     * Public start method access.
+     */
+	public final void forceStart() {
+		start();
+	}
 
     /**
      * "Starts" the <destination.classname>; instances that have been 
@@ -116,7 +133,7 @@ factoryMethods() ::= <<
 
 destroy() ::= <<
 <if (it.destroyMethod)>
-<it.name;format="fieldName">.<it.destroyMethod>();
+try {<it.name;format="fieldName">.<it.destroyMethod>();} catch(Exception e) {}
 <else>
 // Skipping <it.name;format="fieldName">
 <endif>
@@ -319,7 +336,7 @@ stringToBooleanPrimitive(source) ::= <<
 
 
 stringToDefault(source) ::= <<
-null
+"<source.value;format="escapeJava">"
 >>
 
 
