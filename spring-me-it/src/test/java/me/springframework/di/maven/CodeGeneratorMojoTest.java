@@ -189,4 +189,17 @@ public class CodeGeneratorMojoTest extends AbstractMojoTestCase {
         return new File(basedir, name).getAbsolutePath();
     }
 
+    @Test
+    public void testMockModules() throws IOException, VerificationException {
+        File testDir = ResourceExtractor.simpleExtractResources(getClass(), "/it-mockmodules");
+        Verifier verifier = new Verifier(testDir.getAbsolutePath());
+        verifier.deleteArtifact("com.tomtom.di.maven.its", "it-spring-me-mockmodules", "1.0", "jar");
+        verifier.executeGoal("compile");
+        verifier.verifyErrorFreeLog();
+        verifier.assertFilePresent(fileToString(testDir, "target"));
+        verifier.assertFilePresent(fileToString(testDir, "target/generated-sources"));
+        verifier.assertFilePresent(fileToString(testDir, "target/generated-sources/spring-me"));
+        verifier.assertFilePresent(fileToString(testDir, "target/generated-sources/spring-me/com/tomtom/di/maven/its/itsample/BeanFactoryMockModules.java"));
+        verifier.resetStreams();
+    }
 }

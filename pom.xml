@@ -48,6 +48,7 @@
     <module>spring-me-api</module>
     <module>spring-me-core</module>
     <module>spring-me-maven-plugin</module>
+    <module>spring-me-mockmodules</module>
     <module>spring-me-it</module>
       <!--
     <module>spring-me-gwt-sample</module>
@@ -60,6 +61,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.0</version>
         <configuration>
           <source>1.5</source>
           <target>1.5</target>
