@@ -1,0 +1,21 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>me.springframework</groupId>
+    <artifactId>spring-me</artifactId>
+    <version>1.1-SNAPSHOT</version>
+  </parent>
+  <packaging>pom</packaging>
+  <artifactId>spring-me-mockmodules</artifactId>
+  <name>Spring ME Samples</name>
+  <description>
+    A collection of mock maven modules for testing.
+    Specially for testing classloader and classpath resource loading with Spring in maven plugin.
+  </description>
+  <modules>
+    <module>module-bean1</module>
+    <module>module-bean2</module>
+    <module>module-bean3</module>
+    <module>module-methodfactory</module>
+  </modules>
+</project>
