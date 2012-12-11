@@ -76,11 +76,9 @@ public class BeanFactoryGeneratorMojo extends AbstractGeneratorMojo {
      */
     private String factoryType;
 
-    /*
-     * (non-Javadoc)
-     * 
-     * @see
-     * me.springframework.di.maven.AbstractSpringConfigMojo#process(com.tomtom.di.Configuration)
+    /**
+     * {@inheritDoc}
+     * @see me.springframework.di.maven.AbstractGeneratorMojo#process(me.springframework.di.Configuration, me.springframework.di.maven.BeanFactory)
      */
     public void process(Configuration config, BeanFactory factory) throws MojoExecutionException, MojoFailureException {
         ensureTargetDirectoryExists();
@@ -95,7 +93,13 @@ public class BeanFactoryGeneratorMojo extends AbstractGeneratorMojo {
         Destination dest = new FileSystemDestination(factory.getClassName(), targetDirectory);
         try {
             BeanFactoryGenerator.generate(dest, config, type);
-            getProject().addCompileSourceRoot(targetDirectory.getAbsolutePath());
+            if (testScope) {
+            	// Test
+            	getProject().addTestCompileSourceRoot(targetDirectory.getAbsolutePath());
+            } else {
+            	// Normal
+            	getProject().addCompileSourceRoot(targetDirectory.getAbsolutePath());
+            }
         } catch (GeneratorException cge) {
             throw new MojoExecutionException("Failed to generate bean factory.", cge);
         }

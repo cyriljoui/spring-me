@@ -163,6 +163,11 @@ public abstract class AbstractGeneratorMojo extends AbstractMojo {
      */
 	private File repositoryBaseFolder;
 
+    /**
+     * @parameter
+     */
+    protected Boolean testScope = false;
+
 	/**
 	 * @param localRepository the localRepository to set
 	 */
@@ -276,12 +281,10 @@ public abstract class AbstractGeneratorMojo extends AbstractMojo {
 			throw new MojoExecutionException(e.getMessage());
 		}
 
-		/*
 		if (testScope) {
 			String testOutputDirectory = getProject().getBuild().getTestOutputDirectory();
 			classpathURLsList.add(new File(testOutputDirectory).toURI().toURL());
 		}
-		*/
 
 		if (getLog().isDebugEnabled()) {
 			for (URL url : classpathURLsList) {
